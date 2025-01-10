@@ -1,13 +1,21 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, Button, TextInput, Alert, TouchableOpacity } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Alert,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "react-native-vector-icons/Ionicons";
 
-const initialTasks = [
-  { id: 1, name: "Sample Task", quadrant: null },
-];
+const STORAGE_TASKS_KEY = "tasks";
+const STORAGE_QUADRANTS_KEY = "quadrants";
 
 const App = () => {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
   const [quadrants, setQuadrants] = useState({
     "Important/Urgent": [],
@@ -16,13 +24,33 @@ const App = () => {
     "Not Important/Not Urgent": [],
   });
 
+  // Load tasks and quadrants from storage on mount
+  useEffect(() => {
+    const loadStorageData = async () => {
+      const savedTasks = await AsyncStorage.getItem(STORAGE_TASKS_KEY);
+      const savedQuadrants = await AsyncStorage.getItem(STORAGE_QUADRANTS_KEY);
+
+      if (savedTasks) setTasks(JSON.parse(savedTasks));
+      if (savedQuadrants) setQuadrants(JSON.parse(savedQuadrants));
+    };
+
+    loadStorageData();
+  }, []);
+
+  // Save tasks and quadrants to storage when they change
+  useEffect(() => {
+    AsyncStorage.setItem(STORAGE_TASKS_KEY, JSON.stringify(tasks));
+    AsyncStorage.setItem(STORAGE_QUADRANTS_KEY, JSON.stringify(quadrants));
+  }, [tasks, quadrants]);
+
   // Create a new task
   const handleCreateTask = () => {
     if (!newTask.trim()) {
       Alert.alert("Task name is required");
       return;
     }
-    setTasks([...tasks, { id: Date.now(), name: newTask, quadrant: null }]);
+    const newTaskObject = { id: Date.now(), name: newTask, quadrant: null };
+    setTasks([...tasks, newTaskObject]);
     setNewTask("");
   };
 
@@ -50,63 +78,67 @@ const App = () => {
   };
 
   return (
-  <SafeAreaView style={{ flex: 1 }}>
     <View style={styles.container}>
       {/* Eisenhower Matrix Pane */}
-      <View style={styles.matrixContainer}>
-        {Object.keys(quadrants).map((key) => (
-          <View key={key} style={styles.quadrant}>
-            <Text style={styles.quadrantHeader}>{key}</Text>
-            <FlatList
-              data={quadrants[key]}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => <Text style={styles.taskItem}>{item.name}</Text>}
-            />
+      <FlatList
+        ListHeaderComponent={
+          <View style={styles.matrixContainer}>
+            {Object.keys(quadrants).map((key) => (
+              <View key={key} style={styles.quadrant}>
+                <Text style={styles.quadrantHeader}>{key}</Text>
+                <FlatList
+                  data={quadrants[key]}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => <Text style={styles.taskItem}>{item.name}</Text>}
+                />
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
-
-      {/* Task Management Pane */}
-      <View style={styles.taskPane}>
-        <Text style={styles.header}>Task List</Text>
-        <FlatList
-          data={tasks}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.taskRow}>
-              <Text style={styles.taskItem}>{item.name}</Text>
-              <Button title="Assign" onPress={() => handleAssignTask(item)} />
-            </View>
-          )}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="New Task Name"
-          value={newTask}
-          onChangeText={setNewTask}
-        />
-        <Button title="Create Task" onPress={handleCreateTask} />
-      </View>
+        }
+        data={tasks}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.taskRow}>
+            <Text style={styles.taskItem}>{item.name}</Text>
+            <TouchableOpacity
+              style={styles.assignButton}
+              onPress={() => handleAssignTask(item)}
+            >
+              <Icon name="arrow-forward" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+        ListFooterComponent={
+          <View style={styles.addTaskContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="New Task Name"
+              value={newTask}
+              onChangeText={setNewTask}
+            />
+            <TouchableOpacity style={styles.addButton} onPress={handleCreateTask}>
+              <Icon name="add-circle" size={40} color="#007bff" />
+            </TouchableOpacity>
+          </View>
+        }
+      />
     </View>
-    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: "row",
     backgroundColor: "#fff",
   },
   matrixContainer: {
-    flex: 4,
     flexDirection: "row",
     flexWrap: "wrap",
     padding: 5,
   },
   quadrant: {
     width: "50%",
-    height: "50%",
+    height: 200,
     borderWidth: 1,
     borderColor: "black",
     padding: 5,
@@ -120,17 +152,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 2,
   },
-  taskPane: {
-    flex: 1,
-    padding: 10,
-    borderLeftWidth: 1,
-    borderColor: "black",
-  },
-  header: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
   taskRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -138,11 +159,27 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: "gray",
     padding: 5,
-    marginVertical: 10,
     borderRadius: 5,
+    marginRight: 10,
+  },
+  addTaskContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    padding: 5,
+  },
+  addButton: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  assignButton: {
+    backgroundColor: "#007bff",
+    borderRadius: 5,
+    padding: 5,
   },
 });
 
