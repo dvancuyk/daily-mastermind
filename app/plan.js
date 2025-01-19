@@ -6,6 +6,14 @@ import { DataManager, StorageKeys } from '../utils/storage';
 
 export default function Plan() {
   const [tasks, setTasks] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [newTask, setNewTask] = useState({
+      name: '',
+      dueBy: new Date(),
+      estimatedTime: '',
+      tags: [],
+      quadrant: 1, // 1: Important & Urgent, 2: Important & Not Urgent, 3: Not Important & Urgent, 4: Not Important & Not Urgent
+    });
 
   useEffect(() => {
     loadTasks();
@@ -110,3 +118,39 @@ export default function Plan() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 15,
+  },
+  date: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  timeSlot: {
+    flexDirection: 'row',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    alignItems: 'center',
+  },
+  timeContainer: {
+    width: 60,
+  },
+  timeText: {
+    fontWeight: 'bold',
+  },
+  taskContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  task: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 5,
+  }
+});

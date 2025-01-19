@@ -3,8 +3,15 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet } from 
 import { Chip } from 'react-native-paper';
 import { DataManager, StorageKeys } from '../utils/storage';
 
+
+const MOODS = ['😊 Happy', '😢 Sad', '😐 Neutral', '😠 Angry', '😴 Tired'];
+
 export default function Journal() {
   const [entries, setEntries] = useState([]);
+   const [entry, setEntry] = useState('');
+    const [selectedMood, setSelectedMood] = useState('');
+    const [tags, setTags] = useState([]);
+    const [newTag, setNewTag] = useState('');
   const [currentEntry, setCurrentEntry] = useState({
     text: '',
     mood: '',
@@ -105,3 +112,39 @@ export default function Journal() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 15,
+  },
+  date: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  timeSlot: {
+    flexDirection: 'row',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    alignItems: 'center',
+  },
+  timeContainer: {
+    width: 60,
+  },
+  timeText: {
+    fontWeight: 'bold',
+  },
+  taskContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  task: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 5,
+  }
+});
