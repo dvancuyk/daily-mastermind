@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { DataManager, StorageKeys } from '../utils/storage';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function Today() {
   const [schedule, setSchedule] = useState([]);
@@ -61,12 +62,14 @@ export default function Today() {
   return (
     <View style={styles.container}>
       <Text style={styles.date}>{new Date().toLocaleDateString()}</Text>
+      <GestureHandlerRootView>
       <DraggableFlatList
         data={schedule}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         onDragEnd={onDragEnd}
       />
+      </GestureHandlerRootView>
     </View>
   );
 }
