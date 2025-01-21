@@ -114,37 +114,27 @@ export default function Journal() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 15,
-  },
-  date: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  // Journal Screen Styles
+  moodContainer: {
     marginBottom: 20,
   },
-  timeSlot: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    alignItems: 'center',
-  },
-  timeContainer: {
-    width: 60,
-  },
-  timeText: {
-    fontWeight: 'bold',
-  },
-  taskContainer: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  task: {
-    backgroundColor: '#f0f0f0',
+  moodButton: {
     padding: 10,
+    marginRight: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  selectedMood: {
+    backgroundColor: '#e3e3e3',
+  },
+  journalInput: {
+    height: 200,
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 5,
-    marginBottom: 5,
+    padding: 10,
+    marginBottom: 20,
+    textAlignVertical: 'top',
   }
 });
