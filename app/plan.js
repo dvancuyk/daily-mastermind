@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList, PanResponder, Animated } from 'react-native';
 import { Card } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { DataManager, StorageKeys } from '../utils/storage';
+import { Trash2 } from 'lucide-react-native';
 
 export default function Plan() {
   const [tasks, setTasks] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [pan] = useState(new Animated.ValueXY());
   const [newTask, setNewTask] = useState({
     id: '',
     name: '',
-    dueBy: new Date(),
+    dueBy: null,
     estimatedTime: '',
     tags: [],
-    quadrant: 1, // 1: Important & Urgent, 2: Important & Not Urgent, 3: Not Important & Urgent, 4: Not Important & Not Urgent
+    quadrant: null,
     createdAt: null
   });
 
@@ -21,10 +25,56 @@ export default function Plan() {
     loadTasks();
   }, []);
 
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: Animated.event([
+      null,
+      { dx: pan.x, dy: pan.y }
+    ], { useNativeDriver: false }),
+    onPanResponderRelease: (e, gesture) => {
+      const { moveX, moveY, dx, dy } = gesture;
+      const quadrant = determineQuadrant(moveX, moveY);
+      if (selectedTask && quadrant) {
+        updateTaskQuadrant(selectedTask.id, quadrant);
+      }
+      pan.setValue({ x: 0, y: 0 });
+    }
+  });
+
+  const determineQuadrant = (x, y) => {
+    // You'll need to adjust these values based on your layout
+    const midX = width / 2;
+    const midY = 200; // Height of matrix
+
+    if (x < midX && y < midY) return 1;
+    if (x >= midX && y < midY) return 2;
+    if (x < midX && y >= midY) return 3;
+    if (x >= midX && y >= midY) return 4;
+    return null;
+  };
+
   const loadTasks = async () => {
     const savedTasks = await DataManager.getData(StorageKeys.TASKS);
     if (savedTasks) {
       setTasks(savedTasks);
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    const updatedTasks = tasks.filter(task => task.id !== taskId);
+    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
+    if (success) {
+      setTasks(updatedTasks);
+    }
+  };
+
+  const updateTaskQuadrant = async (taskId, quadrant) => {
+    const updatedTasks = tasks.map(task =>
+      task.id === taskId ? { ...task, quadrant } : task
+    );
+    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
+    if (success) {
+      setTasks(updatedTasks);
     }
   };
 
@@ -46,10 +96,10 @@ export default function Plan() {
       setNewTask({
         id: '',
         name: '',
-        dueBy: new Date(),
+        dueBy: null,
         estimatedTime: '',
         tags: [],
-        quadrant: 1,
+        quadrant: null,
         createdAt: null
       });
     }
@@ -66,70 +116,99 @@ export default function Plan() {
       case 4:
         return 'Not Important & Not Urgent';
       default:
-        return 'Unclassified';
+        return 'Unassigned';
     }
   };
 
-  const renderTask = ({ item }) => (
-    <Card style={styles.taskCard}>
-      <Card.Content>
-        <Text style={styles.taskName}>{item.name}</Text>
-        <View style={styles.taskDetails}>
-          <Text style={styles.taskDueDate}>
-            Due: {new Date(item.dueBy).toLocaleDateString()}
-          </Text>
-          {item.estimatedTime && (
-            <Text style={styles.taskTime}>
-              Est. Time: {item.estimatedTime} mins
-            </Text>
-          )}
-          <Text style={styles.taskQuadrant}>
-            {getQuadrantName(item.quadrant)}
-          </Text>
-        </View>
-        {item.tags.length > 0 && (
-          <View style={styles.tagContainer}>
-            {item.tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
+  const renderTask = ({ item }) => {
+    const isSelected = selectedTask?.id === item.id;
+
+    return (
+      <Animated.View
+        {...(isSelected ? panResponder.panHandlers : {})}
+        style={[
+          isSelected && {
+            transform: [
+              { translateX: pan.x },
+              { translateY: pan.y }
+            ]
+          }
+        ]}
+      >
+        <TouchableOpacity onPress={() => setSelectedTask(item)}>
+          <Card style={styles.taskCard}>
+            <Card.Content>
+              <View style={styles.taskHeader}>
+                <Text style={styles.taskName}>{item.name}</Text>
+                <TouchableOpacity onPress={() => deleteTask(item.id)}>
+                  <Trash2 size={20} color="#666" />
+                </TouchableOpacity>
               </View>
-            ))}
-          </View>
-        )}
-      </Card.Content>
-    </Card>
-  );
+              <View style={styles.taskDetails}>
+                {item.dueBy && (
+                  <Text style={styles.taskDueDate}>
+                    Due: {new Date(item.dueBy).toLocaleDateString()}
+                  </Text>
+                )}
+                {item.estimatedTime && (
+                  <Text style={styles.taskTime}>
+                    Est. Time: {item.estimatedTime} mins
+                  </Text>
+                )}
+                <Text style={styles.taskQuadrant}>
+                  {getQuadrantName(item.quadrant)}
+                </Text>
+              </View>
+              {item.tags.length > 0 && (
+                <View style={styles.tagContainer}>
+                  {item.tags.map((tag, index) => (
+                    <View key={index} style={styles.tag}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderQuadrantTasks = (quadrant) => {
+    const quadrantTasks = tasks.filter(task => task.quadrant === quadrant);
+    return (
+      <FlatList
+        data={quadrantTasks}
+        renderItem={renderTask}
+        keyExtractor={item => item.id}
+        style={styles.quadrantList}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.matrix}>
         <View style={styles.matrixRow}>
-          <TouchableOpacity
-            style={[styles.matrixQuadrant, styles.q1]}
-            onPress={() => setNewTask({...newTask, quadrant: 1})}
-          >
+          <View style={[styles.matrixQuadrant, styles.q1]}>
             <Text>Important & Urgent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.matrixQuadrant, styles.q2]}
-            onPress={() => setNewTask({...newTask, quadrant: 2})}
-          >
+            {renderQuadrantTasks(1)}
+          </View>
+          <View style={[styles.matrixQuadrant, styles.q2]}>
             <Text>Important & Not Urgent</Text>
-          </TouchableOpacity>
+            {renderQuadrantTasks(2)}
+          </View>
         </View>
         <View style={styles.matrixRow}>
-          <TouchableOpacity
-            style={[styles.matrixQuadrant, styles.q3]}
-            onPress={() => setNewTask({...newTask, quadrant: 3})}
-          >
+          <View style={[styles.matrixQuadrant, styles.q3]}>
             <Text>Not Important & Urgent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.matrixQuadrant, styles.q4]}
-            onPress={() => setNewTask({...newTask, quadrant: 4})}
-          >
+            {renderQuadrantTasks(3)}
+          </View>
+          <View style={[styles.matrixQuadrant, styles.q4]}>
             <Text>Not Important & Not Urgent</Text>
-          </TouchableOpacity>
+            {renderQuadrantTasks(4)}
+          </View>
         </View>
       </View>
 
@@ -141,7 +220,7 @@ export default function Plan() {
       </TouchableOpacity>
 
       <FlatList
-        data={tasks}
+        data={tasks.filter(task => task.quadrant === null)}
         renderItem={renderTask}
         keyExtractor={item => item.id}
         style={styles.taskList}
@@ -161,11 +240,28 @@ export default function Plan() {
             value={newTask.name}
             onChangeText={(text) => setNewTask({...newTask, name: text})}
           />
-          <DateTimePicker
-            value={newTask.dueBy}
-            mode="date"
-            onChange={(event, date) => setNewTask({...newTask, dueBy: date})}
-          />
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text>
+              {newTask.dueBy
+                ? `Due: ${new Date(newTask.dueBy).toLocaleDateString()}`
+                : 'Set Due Date (Optional)'}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={newTask.dueBy || new Date()}
+              mode="date"
+              onChange={(event, date) => {
+                setShowDatePicker(false);
+                if (date) {
+                  setNewTask({...newTask, dueBy: date});
+                }
+              }}
+            />
+          )}
           <TextInput
             style={styles.input}
             placeholder="Estimated Time (minutes)"
@@ -189,127 +285,25 @@ export default function Plan() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#fff',
-  },
-  matrix: {
-    height: 200,
-    marginBottom: 20,
-  },
-  matrixRow: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  matrixQuadrant: {
-    flex: 1,
-    margin: 5,
-    padding: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
-  },
-  q1: { backgroundColor: '#ffcdd2' },
-  q2: { backgroundColor: '#c8e6c9' },
-  q3: { backgroundColor: '#fff9c4' },
-  q4: { backgroundColor: '#bbdefb' },
-  addButton: {
-    backgroundColor: '#2196F3',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  taskList: {
-    flex: 1,
-  },
-  taskListContent: {
-    paddingBottom: 20,
-  },
-  taskCard: {
-    marginBottom: 10,
-    elevation: 2,
-  },
-  taskName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  taskDetails: {
+  // ... existing styles ...
+  taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  taskDueDate: {
-    color: '#666',
-    fontSize: 12,
-  },
-  taskTime: {
-    color: '#666',
-    fontSize: 12,
-  },
-  taskQuadrant: {
-    color: '#666',
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 5,
-  },
-  tag: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 5,
-    marginBottom: 5,
-  },
-  tagText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
+    marginBottom: 5,
   },
-  input: {
-    width: '100%',
+  dateButton: {
     padding: 10,
-    marginVertical: 10,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 5,
-  },
-  button: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
+    marginVertical: 10,
     width: '100%',
     alignItems: 'center',
   },
-  cancelButton: {
-    backgroundColor: '#f44336',
+  quadrantList: {
+    flex: 1,
+    width: '100%',
   },
-  cancelButtonText: {
-    color: 'white',
-  }
+  // ... rest of existing styles ...
 });
