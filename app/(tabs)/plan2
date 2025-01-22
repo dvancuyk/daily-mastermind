@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList, PanResponder, Animated } from 'react-native';
+bimport { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList, PanResponder, Animated } from 'react-native';
 import { Card } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { DataManager, StorageKeys } from '../utils/storage';
+import { DataManager, StorageKeys } from '../../utils/storage';
 import { Trash2 } from 'lucide-react-native';
 
 export default function Plan() {
@@ -285,11 +285,21 @@ export default function Plan() {
 }
 
 const styles = StyleSheet.create({
+  // Common
   container: {
     flex: 1,
     padding: 15,
     backgroundColor: '#fff',
   },
+  input: {
+      width: '100%',
+      padding: 10,
+      marginVertical: 10,
+      borderWidth: 1,
+      borderColor: '#ddd',
+      borderRadius: 5,
+    },
+  // Quadrants
   matrix: {
     height: 200,
     marginBottom: 20,
@@ -310,6 +320,34 @@ const styles = StyleSheet.create({
   q2: { backgroundColor: '#c8e6c9' },
   q3: { backgroundColor: '#fff9c4' },
   q4: { backgroundColor: '#bbdefb' },
+    quadrantList: {
+      flex: 1,
+      width: '100%',
+    },
+    // Buttons
+  button: {
+      backgroundColor: '#2196F3',
+      padding: 10,
+      borderRadius: 5,
+      marginTop: 10,
+      width: '100%',
+      alignItems: 'center',
+    },
+    cancelButton: {
+      backgroundColor: '#f44336',
+    },
+    cancelButtonText: {
+      color: 'white',
+    },
+  dateButton: {
+      padding: 10,
+      borderWidth: 1,
+      borderColor: '#ddd',
+      borderRadius: 5,
+      marginVertical: 10,
+      width: '100%',
+      alignItems: 'center',
+    },
   addButton: {
     backgroundColor: '#2196F3',
     padding: 15,
@@ -321,6 +359,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  // Tasks
   taskList: {
     flex: 1,
   },
@@ -331,6 +370,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     elevation: 2,
   },
+    taskHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 5,
+    },
   taskName: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -354,6 +399,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
   },
+  // Tags
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -371,6 +417,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  // Modal
   modalView: {
     margin: 20,
     backgroundColor: 'white',
@@ -386,46 +433,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5
   },
-  input: {
-    width: '100%',
-    padding: 10,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-  },
-  button: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f44336',
-  },
-  cancelButtonText: {
-    color: 'white',
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  dateButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    marginVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  quadrantList: {
-    flex: 1,
-    width: '100%',
-  },
-  // ... rest of existing styles ...
+
 });

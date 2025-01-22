@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { DataManager, StorageKeys } from '../utils/storage';
+import { DataManager, StorageKeys } from '../../utils/storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function Today() {

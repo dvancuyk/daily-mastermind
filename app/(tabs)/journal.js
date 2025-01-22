@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Chip } from 'react-native-paper';
-import { DataManager, StorageKeys } from '../utils/storage';
+import { DataManager, StorageKeys } from '../../utils/storage';
 
 
 const MOODS = ['😊 Happy', '😢 Sad', '😐 Neutral', '😠 Angry', '😴 Tired'];
