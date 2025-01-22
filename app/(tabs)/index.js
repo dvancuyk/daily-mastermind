@@ -1,28 +1,16 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  Button,
-} from "react-native";
+import { View, Text, Button, FlatList, TouchableOpacity, Modal, TextInput, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/Ionicons";
-import { signInWithGoogle, fetchTasksFromGoogleKeep } from "./GoogleKeepImport";
-import { Menu, MenuItem } from "react-native-material-menu";
+import { useRouter } from "expo-router";
 
 const STORAGE_TASKS_KEY = "tasks";
 
-const App = () => {
+const HomeScreen = () => {
   const [tasks, setTasks] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [taskDetails, setTaskDetails] = useState({ name: "", time: "", tags: "" });
-  const [authToken, setAuthToken] = useState(null);
-  const [menuVisible, setMenuVisible] = useState(false);
+  const [taskDetails, setTaskDetails] = useState({ name: "", time: "", date: "" });
+  const router = useRouter();
 
   useEffect(() => {
     const loadStorageData = async () => {
@@ -37,58 +25,28 @@ const App = () => {
     AsyncStorage.setItem(STORAGE_TASKS_KEY, JSON.stringify(tasks));
   }, [tasks]);
 
-  const handleImportTasks = async () => {
-    try {
-      if (!authToken) {
-        const token = await signInWithGoogle();
-        setAuthToken(token);
-      }
-
-      const importedTasks = await fetchTasksFromGoogleKeep(authToken);
-      setTasks((prevTasks) => [...prevTasks, ...importedTasks]);
-    } catch (error) {
-      Alert.alert("Error importing tasks", error.message);
-    }
-  };
-
   const handleCreateTask = () => {
-    const { name, time, tags } = taskDetails;
-    if (!name.trim() || !time.trim()) {
-      Alert.alert("Both name and time are required");
+    const { name, time, date } = taskDetails;
+    if (!name.trim() || !time.trim() || !date.trim()) {
+      alert("All fields are required!");
       return;
     }
 
     const newTask = {
       id: Date.now(),
-      name: name.trim(),
+      name,
       time: `${time.trim()} hours`,
-      tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
+      date,
     };
 
     setTasks([...tasks, newTask]);
-    setTaskDetails({ name: "", time: "", tags: "" });
+    setTaskDetails({ name: "", time: "", date: "" });
     setModalVisible(false);
   };
 
   return (
     <View style={styles.container}>
-      {/* Header with Menu */}
-      <View style={styles.header}>
-        <Menu
-          visible={menuVisible}
-          anchor={
-            <TouchableOpacity onPress={() => setMenuVisible(true)}>
-              <Icon name="menu" size={30} color="black" />
-            </TouchableOpacity>
-          }
-          onRequestClose={() => setMenuVisible(false)}
-        >
-          <MenuItem onPress={handleImportTasks}>Import from Google Keep</MenuItem>
-        </Menu>
-        <Text style={styles.title}>Mastermind</Text>
-      </View>
-
-      {/* Task List */}
+      <Button title="Go to Plan" onPress={() => router.push("/plan")} />
       <FlatList
         data={tasks}
         keyExtractor={(item) => item.id.toString()}
@@ -96,7 +54,7 @@ const App = () => {
           <View style={styles.taskRow}>
             <Text>{item.name}</Text>
             <Text>{item.time}</Text>
-            <Text>{item.tags.join(", ")}</Text>
+            <Text>{item.date}</Text>
           </View>
         )}
         ListFooterComponent={
@@ -105,8 +63,6 @@ const App = () => {
           </TouchableOpacity>
         }
       />
-
-      {/* Add Task Modal */}
       <Modal visible={modalVisible} animationType="slide">
         <View style={styles.modalContent}>
           <TextInput
@@ -119,8 +75,8 @@ const App = () => {
             onChangeText={(text) => setTaskDetails({ ...taskDetails, time: text })}
           />
           <TextInput
-            placeholder="Tags (comma-separated)"
-            onChangeText={(text) => setTaskDetails({ ...taskDetails, tags: text })}
+            placeholder="Date (YYYY-MM-DD)"
+            onChangeText={(text) => setTaskDetails({ ...taskDetails, date: text })}
           />
           <Button title="Add Task" onPress={handleCreateTask} />
           <Button title="Close" onPress={() => setModalVisible(false)} />
@@ -132,15 +88,8 @@ const App = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  title: { fontSize: 20, fontWeight: "bold" },
   taskRow: { padding: 10, borderBottomWidth: 1 },
   modalContent: { flex: 1, justifyContent: "center", padding: 20 },
 });
 
-export default App;
+export default HomeScreen;
