@@ -61,7 +61,8 @@ export default function Today() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.date}>{new Date().toLocaleDateString()}</Text>
+      <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { weekday: 'long' }) }</Text>
+      <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</Text>
       <GestureHandlerRootView>
       <DraggableFlatList
         data={schedule}
@@ -84,6 +85,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
+    textAlign: 'center'
   },
   timeSlot: {
     flexDirection: 'row',

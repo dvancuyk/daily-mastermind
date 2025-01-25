@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: 'blue' }} >
+    <Tabs screenOptions={{ tabBarActiveTintColor: 'blue', headerTitleAlign: 'center' }} >
            <Tabs.Screen
              name="index"
              options={{
@@ -24,7 +24,7 @@ export default function TabLayout() {
              name="plan"
              options={{
                title: 'Plan',
-               headerTitle: 'My Plans',
+               headerTitle: 'Planning',
                tabBarIcon: ({color, size}) => <Ionicons name='grid-outline' size={size} color={color} />
              }}
            />

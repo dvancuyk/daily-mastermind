@@ -33,6 +33,11 @@ export default function Plan() {
   };
 
   const getAbbreviatedName = (name) => {
+    
+    return name.length > 15 
+      ? name.substring(0, 12) + "..."
+      : name;
+
     const words = name.split(' ');
     if (words.length === 1) {
       return name.substring(0, 3);
