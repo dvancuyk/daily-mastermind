@@ -4,6 +4,7 @@ import { Card } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { DataManager, StorageKeys } from '../../utils/storage';
 import { Trash2, Move } from 'lucide-react-native';
+import { randomUUID } from 'expo-crypto';
 
 export default function Plan() {
   const [tasks, setTasks] = useState([]);
@@ -80,7 +81,7 @@ export default function Plan() {
 
     const taskToAdd = {
       ...newTask,
-      id: Math.random().toString(36).substr(2, 9),
+      id: randomUUID(),
       createdAt: new Date().toISOString()
     };
 
@@ -91,7 +92,7 @@ export default function Plan() {
       setTasks(updatedTasks);
       setModalVisible(false);
       setNewTask({
-        id: '',
+        id: randomUUID(),
         name: '',
         dueBy: null,
         estimatedTime: '',

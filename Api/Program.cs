@@ -11,6 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Add CORS services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigin",
+        builder => builder.WithOrigins("http://localhost:8081")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod());
+});
+
 // Load configuration settings
 var mongoSettings = builder.Configuration.GetSection("Databases:Mongo");
 var connectionString = mongoSettings["ConnectionString"];
@@ -33,6 +42,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
+// Use CORS middleware
+app.UseCors("AllowSpecificOrigin");
+
 app.MapControllers();
 
 app.Run();
