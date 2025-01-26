@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList, Dimensions } from 'react-native';
 import { Card } from 'react-native-paper';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateCalendar from '@mui/material';
 import { DataManager, StorageKeys } from '../../utils/storage';
 import { Trash2, Move } from 'lucide-react-native';
 import { randomUUID } from 'expo-crypto';
@@ -34,16 +34,10 @@ export default function Plan() {
   };
 
   const getAbbreviatedName = (name) => {
-    
-    return name.length > 15 
-      ? name.substring(0, 12) + "..."
+    const maxLength  = 20
+    return name.length > maxLength 
+      ? name.substring(0, maxLength - 3) + "..."
       : name;
-
-    const words = name.split(' ');
-    if (words.length === 1) {
-      return name.substring(0, 3);
-    }
-    return words.map(word => word[0]).join('').substring(0, 3);
   };
 
   const deleteTask = async (taskId) => {
@@ -280,7 +274,8 @@ export default function Plan() {
             </Text>
           </TouchableOpacity>
           {showDatePicker && (
-            <DateTimePicker
+            <DateCalendar
+              defaultValue = {new Date()}
               value={newTask.dueBy || new Date()}
               mode="date"
               onChange={(event, date) => {
