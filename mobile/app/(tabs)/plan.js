@@ -1,17 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, FlatList, Dimensions } from 'react-native';
-import { Card } from 'react-native-paper';
-import DateCalendar from '@mui/material';
-import { DataManager, StorageKeys } from '../../utils/storage';
-import { Trash2, Move } from 'lucide-react-native';
-import { randomUUID } from 'expo-crypto';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Typography,
+  Paper,
+  Grid2
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { Delete, Add, ArrowBack } from '@mui/icons-material';
 
 export default function Plan() {
   const [tasks, setTasks] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [taskDetailModalVisible, setTaskDetailModalVisible] = useState(false);
+  const [newTaskModal, setNewTaskModal] = useState(false);
+  const [taskDetailModal, setTaskDetailModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [newTask, setNewTask] = useState({
     id: '',
     name: '',
@@ -26,135 +38,95 @@ export default function Plan() {
     loadTasks();
   }, []);
 
-  const loadTasks = async () => {
-    const savedTasks = await DataManager.getData(StorageKeys.TASKS);
+  const loadTasks = () => {
+    const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
-      setTasks(savedTasks);
+      setTasks(JSON.parse(savedTasks));
     }
+  };
+
+  const saveTasks = (updatedTasks) => {
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    setTasks(updatedTasks);
   };
 
   const getAbbreviatedName = (name) => {
-    const maxLength  = 20
-    return name.length > maxLength 
-      ? name.substring(0, maxLength - 3) + "..."
-      : name;
-  };
-
-  const deleteTask = async (taskId) => {
-    const updatedTasks = tasks.filter(task => task.id !== taskId);
-    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
-    if (success) {
-      setTasks(updatedTasks);
-      setTaskDetailModalVisible(false);
+    const words = name.split(' ');
+    if (words.length === 1) {
+      return name.substring(0, 3);
     }
+    return words.map(word => word[0]).join('').substring(0, 3);
   };
 
-  const moveToUnassigned = async (taskId) => {
-    const updatedTasks = tasks.map(task =>
+  const deleteTask = (taskId) => {
+    const updatedTasks = tasks.filter(task => task.id !== taskId);
+    saveTasks(updatedTasks);
+    setTaskDetailModal(false);
+  };
+
+  const moveToUnassigned = (taskId) => {
+    const updatedTasks = tasks.map(task => 
       task.id === taskId ? { ...task, quadrant: null } : task
     );
-    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
-    if (success) {
-      setTasks(updatedTasks);
-      setTaskDetailModalVisible(false);
-    }
+    saveTasks(updatedTasks);
+    setTaskDetailModal(false);
   };
 
-  const assignToQuadrant = async (taskId, quadrant) => {
-    const updatedTasks = tasks.map(task =>
+  const assignToQuadrant = (taskId, quadrant) => {
+    const updatedTasks = tasks.map(task => 
       task.id === taskId ? { ...task, quadrant } : task
     );
-    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
-    if (success) {
-      setTasks(updatedTasks);
-    }
+    saveTasks(updatedTasks);
   };
 
-  const addTask = async () => {
+  const addTask = () => {
     if (!newTask.name) return;
 
     const taskToAdd = {
       ...newTask,
-      id: randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString()
     };
 
     const updatedTasks = [...tasks, taskToAdd];
-    const success = await DataManager.saveData(StorageKeys.TASKS, updatedTasks);
-
-    if (success) {
-      setTasks(updatedTasks);
-      setModalVisible(false);
-      setNewTask({
-        id: randomUUID(),
-        name: '',
-        dueBy: null,
-        estimatedTime: '',
-        tags: [],
-        quadrant: null,
-        createdAt: null
-      });
-    }
+    saveTasks(updatedTasks);
+    setNewTaskModal(false);
+    setNewTask({
+      id: '',
+      name: '',
+      dueBy: null,
+      estimatedTime: '',
+      tags: [],
+      quadrant: null,
+      createdAt: null
+    });
   };
 
   const renderTaskBubble = (task) => (
-    <TouchableOpacity
+    <Box
       key={task.id}
-      style={styles.taskBubble}
-      onPress={() => {
+      onClick={() => {
         setSelectedTask(task);
-        setTaskDetailModalVisible(true);
+        setTaskDetailModal(true);
+      }}
+      sx={{
+        backgroundColor: 'white',
+        borderRadius: '20px',
+        padding: '8px',
+        margin: '2px',
+        minWidth: '40px',
+        textAlign: 'center',
+        cursor: 'pointer',
+        boxShadow: 1,
+        '&:hover': {
+          boxShadow: 2,
+        }
       }}
     >
-      <Text style={styles.taskBubbleText}>{getAbbreviatedName(task.name)}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderQuadrant = (quadrantNumber) => {
-    const quadrantTasks = tasks.filter(task => task.quadrant === quadrantNumber);
-    return (
-      <View style={[styles.matrixQuadrant, styles[`q${quadrantNumber}`]]}>
-        <Text style={styles.quadrantTitle}>{getQuadrantName(quadrantNumber)}</Text>
-        <View style={styles.bubbleContainer}>
-          {quadrantTasks.map(task => renderTaskBubble(task))}
-        </View>
-      </View>
-    );
-  };
-
-  const renderUnassignedTask = ({ item }) => (
-    <TouchableOpacity onPress={() => setSelectedTask(item)}>
-      <Card style={styles.taskCard}>
-        <Card.Content>
-          <View style={styles.taskHeader}>
-            <Text style={styles.taskName}>{item.name}</Text>
-            <View style={styles.taskActions}>
-              {[1, 2, 3, 4].map(quadrant => (
-                <TouchableOpacity
-                  key={quadrant}
-                  style={[styles.quadrantButton, styles[`q${quadrant}`]]}
-                  onPress={() => assignToQuadrant(item.id, quadrant)}
-                >
-                  <Text style={styles.quadrantButtonText}>{quadrant}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          <View style={styles.taskDetails}>
-            {item.dueBy && (
-              <Text style={styles.taskDueDate}>
-                Due: {new Date(item.dueBy).toLocaleDateString()}
-              </Text>
-            )}
-            {item.estimatedTime && (
-              <Text style={styles.taskTime}>
-                Est. Time: {item.estimatedTime} mins
-              </Text>
-            )}
-          </View>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
+      <Typography variant="caption" fontWeight="bold">
+        {getAbbreviatedName(task.name)}
+      </Typography>
+    </Box>
   );
 
   const getQuadrantName = (quadrant) => {
@@ -167,380 +139,196 @@ export default function Plan() {
     }
   };
 
+  const getQuadrantColor = (quadrant) => {
+    switch (quadrant) {
+      case 1: return '#ffcdd2';
+      case 2: return '#c8e6c9';
+      case 3: return '#fff9c4';
+      case 4: return '#bbdefb';
+      default: return '#ffffff';
+    }
+  };
+
+  const renderQuadrant = (quadrantNumber) => {
+    const quadrantTasks = tasks.filter(task => task.quadrant === quadrantNumber);
+    return (
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          height: '100%',
+          backgroundColor: getQuadrantColor(quadrantNumber),
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        <Typography variant="subtitle2" align="center" gutterBottom>
+          {getQuadrantName(quadrantNumber)}
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {quadrantTasks.map(task => renderTaskBubble(task))}
+        </Box>
+      </Paper>
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.matrix}>
-        <View style={styles.matrixRow}>
-          {renderQuadrant(1)}
-          {renderQuadrant(2)}
-        </View>
-        <View style={styles.matrixRow}>
-          {renderQuadrant(3)}
-          {renderQuadrant(4)}
-        </View>
-      </View>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Box sx={{ p: 3 }}>
+        <Grid2 container spacing={2} >
+          <Grid2 size={6}>
+            {renderQuadrant(1)}
+          </Grid2>
+          <Grid2 size={6}>
+            {renderQuadrant(2)}
+          </Grid2>
+        </Grid2>
+        <Grid2 container spacing={2} rowSpacing={2}>
+          <Grid2 size={6}>
+            {renderQuadrant(3)}
+          </Grid2>
+          <Grid2 size={6}>
+            {renderQuadrant(4)}
+          </Grid2>
+        </Grid2>
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.addButtonText}>+ Add Task</Text>
-      </TouchableOpacity>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setNewTaskModal(true)}
+          sx={{ mb: 2 }}
+        >
+          Add Task
+        </Button>
 
-      <FlatList
-        data={tasks.filter(task => task.quadrant === null)}
-        renderItem={renderUnassignedTask}
-        keyExtractor={item => item.id}
-        style={styles.taskList}
-        contentContainerStyle={styles.taskListContent}
-      />
+        {/* Unassigned Tasks */}
+        <Box>
+          {tasks
+            .filter(task => task.quadrant === null)
+            .map(task => (
+              <Card key={task.id} sx={{ mb: 1 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">{task.name}</Typography>
+                    <Box>
+                      {[1, 2, 3, 4].map(quadrant => (
+                        <IconButton
+                          key={quadrant}
+                          size="small"
+                          onClick={() => assignToQuadrant(task.id, quadrant)}
+                          sx={{ 
+                            bgcolor: getQuadrantColor(quadrant),
+                            mr: 0.5,
+                            '&:hover': { bgcolor: getQuadrantColor(quadrant) }
+                          }}
+                        >
+                          {quadrant}
+                        </IconButton>
+                      ))}
+                    </Box>
+                  </Box>
+                  <Box sx={{ mt: 1 }}>
+                    {task.dueBy && (
+                      <Typography variant="body2" color="text.secondary">
+                        Due: {new Date(task.dueBy).toLocaleDateString()}
+                      </Typography>
+                    )}
+                    {task.estimatedTime && (
+                      <Typography variant="body2" color="text.secondary">
+                        Est. Time: {task.estimatedTime} mins
+                      </Typography>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+        </Box>
 
-      {/* Task Detail Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={taskDetailModalVisible}
-        onRequestClose={() => setTaskDetailModalVisible(false)}
-      >
-        <View style={styles.modalView}>
+        {/* New Task Modal */}
+        <Dialog 
+          open={newTaskModal} 
+          onClose={() => setNewTaskModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Add New Task</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Task Name"
+              fullWidth
+              value={newTask.name}
+              onChange={(e) => setNewTask({...newTask, name: e.target.value})}
+              sx={{ mb: 2 }}
+            />
+            <DatePicker
+              label="Due Date (Optional)"
+              value={newTask.dueBy}
+              onChange={(date) => setNewTask({...newTask, dueBy: date})}
+              renderInput={(params) => <TextField {...params} fullWidth />}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Estimated Time (minutes)"
+              fullWidth
+              type="number"
+              value={newTask.estimatedTime}
+              onChange={(e) => setNewTask({...newTask, estimatedTime: e.target.value})}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNewTaskModal(false)}>Cancel</Button>
+            <Button onClick={addTask} variant="contained">Add Task</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Task Detail Modal */}
+        <Dialog 
+          open={taskDetailModal} 
+          onClose={() => setTaskDetailModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
           {selectedTask && (
             <>
-              <Text style={styles.modalTitle}>{selectedTask.name}</Text>
-              {selectedTask.dueBy && (
-                <Text style={styles.modalText}>
-                  Due: {new Date(selectedTask.dueBy).toLocaleDateString()}
-                </Text>
-              )}
-              {selectedTask.estimatedTime && (
-                <Text style={styles.modalText}>
-                  Estimated Time: {selectedTask.estimatedTime} minutes
-                </Text>
-              )}
-              <Text style={styles.modalText}>
-                Quadrant: {getQuadrantName(selectedTask.quadrant)}
-              </Text>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.moveButton]}
-                  onPress={() => moveToUnassigned(selectedTask.id)}
+              <DialogTitle>{selectedTask.name}</DialogTitle>
+              <DialogContent>
+                {selectedTask.dueBy && (
+                  <Typography variant="body1" gutterBottom>
+                    Due: {new Date(selectedTask.dueBy).toLocaleDateString()}
+                  </Typography>
+                )}
+                {selectedTask.estimatedTime && (
+                  <Typography variant="body1" gutterBottom>
+                    Estimated Time: {selectedTask.estimatedTime} minutes
+                  </Typography>
+                )}
+                <Typography variant="body1" gutterBottom>
+                  Quadrant: {getQuadrantName(selectedTask.quadrant)}
+                </Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button
+                  startIcon={<ArrowBack />}
+                  onClick={() => moveToUnassigned(selectedTask.id)}
                 >
-                  <Move size={20} color="#fff" />
-                  <Text style={styles.buttonText}>Move to Unassigned</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.deleteButton]}
-                  onPress={() => deleteTask(selectedTask.id)}
+                  Move to Unassigned
+                </Button>
+                <Button
+                  startIcon={<Delete />}
+                  color="error"
+                  onClick={() => deleteTask(selectedTask.id)}
                 >
-                  <Trash2 size={20} color="#fff" />
-                  <Text style={styles.buttonText}>Delete Task</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setTaskDetailModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
+                  Delete Task
+                </Button>
+                <Button onClick={() => setTaskDetailModal(false)}>Close</Button>
+              </DialogActions>
             </>
           )}
-        </View>
-      </Modal>
-
-      {/* Add Task Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalView}>
-          <TextInput
-            style={styles.input}
-            placeholder="Task Name*"
-            value={newTask.name}
-            onChangeText={(text) => setNewTask({...newTask, name: text})}
-          />
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text>
-              {newTask.dueBy
-                ? `Due: ${new Date(newTask.dueBy).toLocaleDateString()}`
-                : 'Set Due Date (Optional)'}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateCalendar
-              defaultValue = {new Date()}
-              value={newTask.dueBy || new Date()}
-              mode="date"
-              onChange={(event, date) => {
-                setShowDatePicker(false);
-                if (date) {
-                  setNewTask({...newTask, dueBy: date});
-                }
-              }}
-            />
-          )}
-          <TextInput
-            style={styles.input}
-            placeholder="Estimated Time (minutes)"
-            value={newTask.estimatedTime}
-            onChangeText={(text) => setNewTask({...newTask, estimatedTime: text})}
-            keyboardType="numeric"
-          />
-          <TouchableOpacity style={styles.button} onPress={addTask}>
-            <Text style={styles.buttonText}>Add Task</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={() => setModalVisible(false)}
-          >
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-    </View>
+        </Dialog>
+      </Box>
+    </LocalizationProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  // Common
-  container: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#fff',
-  },
-    input: {
-        width: '100%',
-        padding: 10,
-        marginVertical: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-    },
-  // Bubbles
-  bubbleContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  taskBubble: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-    margin: 2,
-    minWidth: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-    elevation: 2,
-  },
-  taskBubbleText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  // Quadrants
-  matrix: {
-      height: 300,
-      marginBottom: 20,
-    },
-    matrixRow: {
-      flex: 1,
-      flexDirection: 'row',
-    },
-  matrixQuadrant: {
-      flex: 1,
-      margin: 5,
-      padding: 10,
-      borderRadius: 5,
-  },
-  quadrantTitle: {
-      fontSize: 12,
-      fontWeight: 'bold',
-      marginBottom: 10,
-      textAlign: 'center',
-  },
-  q1: { backgroundColor: '#ffcdd2' },
-  q2: { backgroundColor: '#c8e6c9' },
-  q3: { backgroundColor: '#fff9c4' },
-  q4: { backgroundColor: '#bbdefb' },
-    quadrantButton: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    quadrantButtonText: {
-      fontSize: 12,
-      fontWeight: 'bold',
-      color: '#000',
-    },
-  // Buttons
-  button: {
-          backgroundColor: '#2196F3',
-          padding: 10,
-          borderRadius: 5,
-          marginTop: 10,
-          width: '100%',
-          alignItems: 'center',
-        },
-    moveButton: {
-      backgroundColor: '#2196F3',
-    },
-    deleteButton: {
-      backgroundColor: '#f44336',
-    },
-    buttonText: {
-      color: 'white',
-      fontWeight: 'bold',
-    },
-     cancelButton: {
-          backgroundColor: '#f44336',
-        },
-    cancelButtonText: {
-        color: 'white',
-      },
-    closeButton: {
-      marginTop: 20,
-      padding: 10,
-      backgroundColor: '#666',
-      borderRadius: 5,
-      width: '100%',
-      alignItems: 'center',
-    },
-    closeButtonText: {
-      color: 'white',
-      fontWeight: 'bold',
-    },
-    dateButton: {
-        padding: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-        marginVertical: 10,
-        width: '100%',
-        alignItems: 'center',
-      },
-
-  addButton: {
-    backgroundColor: '#2196F3',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  // Tasks
-  taskList: {
-    flex: 1,
-  },
-  taskListContent: {
-    paddingBottom: 20,
-  },
-  taskCard: {
-    marginBottom: 10,
-    elevation: 2,
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  taskActions: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-   taskName: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      marginBottom: 5,
-    },
-    taskDetails: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 5,
-    },
-    taskDueDate: {
-      color: '#666',
-      fontSize: 12,
-    },
-    taskTime: {
-      color: '#666',
-      fontSize: 12,
-    },
-    taskQuadrant: {
-      color: '#666',
-      fontSize: 12,
-      fontStyle: 'italic',
-    },
-   //Tags
-     tagContainer: {
-       flexDirection: 'row',
-       flexWrap: 'wrap',
-       marginTop: 5,
-     },
-  tag: {
-      backgroundColor: '#e0e0e0',
-      borderRadius: 12,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      marginRight: 5,
-      marginBottom: 5,
-    },
-    tagText: {
-      fontSize: 12,
-      color: '#666',
-    },
-  // Modal
-  modalView: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  modalText: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  modalActions: {
-    flexDirection: 'column',
-    gap: 10,
-    width: '100%',
-    marginTop: 20,
-  },
-  modalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    borderRadius: 5,
-    gap: 10,
-  }
-});
