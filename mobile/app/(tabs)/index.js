@@ -1,189 +1,253 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  FlatList,
+  Box,
   Button,
-} from 'react-native';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { DataManager, StorageKeys } from '../../utils/storage';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+  Card,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Typography,
+  Paper,
+} from '@mui/material';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { Add, Delete } from '@mui/icons-material';
+import dayjs from 'dayjs';
 
-export default function Today() {
-  const [schedule, setSchedule] = useState([]);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [quadrantTasks, setQuadrantTasks] = useState([
-    { id: '1', name: 'Task 1 - Quadrant A' },
-    { id: '2', name: 'Task 2 - Quadrant B' },
-    { id: '3', name: 'Task 3 - Quadrant C' },
-    { id: '4', name: 'Task 4 - Quadrant D' },
-  ]);
+const SchedulePlanner = () => {
+  const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    name: '',
+    startTime: null,
+    duration: ''
+  });
 
-  // Generate time slots from 0:00 to 23:00
-  const timeSlots = Array.from({ length: 24 }, (_, i) => ({
-    id: `time-${i}`,
-    time: `${String(i).padStart(2, '0')}:00`,
-    tasks: [],
-  }));
+  // Generate time slots for the entire day (30-minute intervals)
+  const generateTimeSlots = () => {
+    const slots = [];
+    const startOfDay = dayjs().startOf('day');
+    
+    for (let i = 0; i < 48; i++) { // 48 half-hour slots in a day
+      const time = startOfDay.add(i * 30, 'minute');
+      slots.push(time);
+    }
+    return slots;
+  };
+
+  const timeSlots = generateTimeSlots();
+
+  // Helper function to calculate how many slots an event spans
+  const calculateEventSpan = (startTime, duration) => {
+    return Math.ceil(duration / 30); // duration in minutes divided by 30 min slots
+  };
+
+  // Helper function to determine which slot an event starts in
+  const getEventStartSlot = (startTime) => {
+    if (!startTime) return 0;
+    const minutes = startTime.hour() * 60 + startTime.minute();
+    return Math.floor(minutes / 30);
+  };
 
   useEffect(() => {
-    loadSchedule();
+    const savedEvents = localStorage.getItem('scheduledEvents');
+    if (savedEvents) {
+      const parsedEvents = JSON.parse(savedEvents);
+      const eventsWithDayjs = parsedEvents.map(event => ({
+        ...event,
+        startTime: event.startTime ? dayjs(event.startTime) : null
+      }));
+      setEvents(eventsWithDayjs);
+    }
   }, []);
 
-  const loadSchedule = async () => {
-    const savedSchedule = await DataManager.getData(StorageKeys.SCHEDULE);
-    if (savedSchedule) {
-      setSchedule(savedSchedule);
-    } else {
-      setSchedule(timeSlots);
+  useEffect(() => {
+    const eventsForStorage = events.map(event => ({
+      ...event,
+      startTime: event.startTime ? event.startTime.toISOString() : null
+    }));
+    localStorage.setItem('scheduledEvents', JSON.stringify(eventsForStorage));
+  }, [events]);
+
+  const handleSubmit = () => {
+    if (!newEvent.name || !newEvent.startTime || !newEvent.duration) {
+      return;
     }
+
+    const newEventWithId = {
+      ...newEvent,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+
+    const updatedEvents = [...events, newEventWithId].sort((a, b) => 
+      getEventStartSlot(a.startTime) - getEventStartSlot(b.startTime)
+    );
+    
+    setEvents(updatedEvents);
+    setShowForm(false);
+    setNewEvent({
+      name: '',
+      startTime: null,
+      duration: ''
+    });
   };
 
-  const assignTaskToTimeSlot = (timeSlotId, task) => {
-    setSchedule((prevSchedule) =>
-      prevSchedule.map((slot) =>
-        slot.id === timeSlotId
-          ? { ...slot, tasks: [...slot.tasks, task] }
-          : slot
-      )
-    );
-    setQuadrantTasks((prevTasks) =>
-      prevTasks.filter((item) => item.id !== task.id)
-    );
-    setDrawerVisible(false);
-  };
-
-  const renderItem = ({ item, drag, isActive }) => (
-    <ScaleDecorator>
-      <TouchableOpacity
-        activeOpacity={1}
-        onLongPress={drag}
-        disabled={isActive}
-        style={[
-          styles.timeSlot,
-          { backgroundColor: isActive ? '#eee' : '#fff' },
-        ]}
-      >
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{item.time}</Text>
-        </View>
-        <View style={styles.taskContainer}>
-          {item.tasks.map((task, index) => (
-            <View key={index} style={styles.task}>
-              <Text>{task.name}</Text>
-            </View>
-          ))}
-        </View>
-      </TouchableOpacity>
-    </ScaleDecorator>
-  );
-
-  const onDragEnd = async ({ data }) => {
-    setSchedule(data);
-    await DataManager.saveData(StorageKeys.SCHEDULE, data);
+  const deleteEvent = (id) => {
+    setEvents(events.filter(event => event.id !== id));
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.date}>
-        {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
-      </Text>
-      <Text style={styles.date}>
-        {new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        })}
-      </Text>
-      <Button title="Open Task Drawer" onPress={() => setDrawerVisible(true)} />
-      <GestureHandlerRootView>
-        <DraggableFlatList
-          data={schedule}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          onDragEnd={onDragEnd}
-        />
-      </GestureHandlerRootView>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Card sx={{ maxWidth: 800, mx: 'auto', mt: 2 }}>
+        <CardContent>
+          <Typography variant="h5" gutterBottom>
+            Schedule Planner
+          </Typography>
 
-      {/* Drawer Modal */}
-      <Modal
-        visible={drawerVisible}
-        animationType="slide"
-        onRequestClose={() => setDrawerVisible(false)}
-      >
-        <View style={styles.drawerContainer}>
-          <Text style={styles.drawerTitle}>Select Task to Assign</Text>
-          <FlatList
-            data={quadrantTasks}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.taskItem}
-                onPress={() => assignTaskToTimeSlot(schedule[0].id, item)} // Example: assigns to the first time slot
-              >
-                <Text>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-          />
-          <Button title="Close Drawer" onPress={() => setDrawerVisible(false)} />
-        </View>
-      </Modal>
-    </View>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setShowForm(true)}
+            sx={{ mb: 2 }}
+          >
+            Add Event
+          </Button>
+
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: '100px 1fr',
+            gap: 1,
+            border: '1px solid #e0e0e0',
+            borderRadius: 1,
+            height: '70vh',
+            overflow: 'auto'
+          }}>
+            {/* Time slots column */}
+            <Box sx={{ 
+              borderRight: '1px solid #e0e0e0',
+              backgroundColor: '#f5f5f5'
+            }}>
+              {timeSlots.map((time, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    height: '60px',
+                    borderBottom: '1px solid #e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 1,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {time.format('h:mm A')}
+                </Box>
+              ))}
+            </Box>
+
+            {/* Events column */}
+            <Box sx={{ position: 'relative', backgroundColor: '#fff' }}>
+              {/* Grid lines */}
+              {timeSlots.map((_, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    height: '60px',
+                    borderBottom: '1px solid #e0e0e0',
+                  }}
+                />
+              ))}
+
+              {/* Events */}
+              {events.map((event) => {
+                const startSlot = getEventStartSlot(event.startTime);
+                const spanSlots = calculateEventSpan(event.startTime, event.duration);
+                
+                return (
+                  <Paper
+                    key={event.id}
+                    sx={{
+                      position: 'absolute',
+                      top: `${startSlot * 60}px`,
+                      left: '8px',
+                      right: '8px',
+                      height: `${spanSlots * 60 - 8}px`,
+                      backgroundColor: '#bbdefb',
+                      padding: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      zIndex: 1
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {event.name}
+                    </Typography>
+                    <IconButton
+                      onClick={() => deleteEvent(event.id)}
+                      size="small"
+                      sx={{ padding: 0.5 }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Paper>
+                );
+              })}
+            </Box>
+          </Box>
+
+          <Dialog 
+            open={showForm} 
+            onClose={() => setShowForm(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>
+              Add New Event
+            </DialogTitle>
+            <DialogContent>
+              <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Event Name"
+                  value={newEvent.name}
+                  onChange={(e) => setNewEvent({...newEvent, name: e.target.value})}
+                />
+                <TimePicker
+                  label="Start Time"
+                  value={newEvent.startTime}
+                  onChange={(newValue) => setNewEvent({...newEvent, startTime: newValue})}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true
+                    }
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Duration (minutes)"
+                  type="number"
+                  value={newEvent.duration}
+                  onChange={(e) => setNewEvent({...newEvent, duration: e.target.value})}
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} variant="contained">
+                Save Event
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </CardContent>
+      </Card>
+    </LocalizationProvider>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 15,
-  },
-  date: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  timeSlot: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    alignItems: 'center',
-  },
-  timeContainer: {
-    width: 60,
-  },
-  timeText: {
-    fontWeight: 'bold',
-  },
-  taskContainer: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  task: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 5,
-  },
-  drawerContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 15,
-  },
-  drawerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  taskItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-});
+export default SchedulePlanner;

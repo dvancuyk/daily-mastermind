@@ -1,140 +1,171 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Chip } from 'react-native-paper';
-import { DataManager, StorageKeys } from '../../utils/storage';
-
+import { Box, TextField, Typography, Button, Chip, Paper } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { DataGrid } from '@mui/x-data-grid';
 
 const MOODS = ['😊 Happy', '😢 Sad', '😐 Neutral', '😠 Angry', '😴 Tired'];
 
-export default function Journal() {
+const Journal = () => {
   const [entries, setEntries] = useState([]);
-   const [entry, setEntry] = useState('');
-    const [selectedMood, setSelectedMood] = useState('');
-    const [tags, setTags] = useState([]);
-    const [newTag, setNewTag] = useState('');
   const [currentEntry, setCurrentEntry] = useState({
+    id: Date.now(),
     text: '',
     mood: '',
     tags: [],
-    date: new Date().toISOString(),
+    date: new Date(),
   });
+  const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
     loadEntries();
   }, []);
 
-  const loadEntries = async () => {
-    const savedEntries = await DataManager.getData(StorageKeys.JOURNAL_ENTRIES);
+  const loadEntries = () => {
+    const savedEntries = localStorage.getItem('journalEntries');
     if (savedEntries) {
-      setEntries(savedEntries);
+      setEntries(JSON.parse(savedEntries));
     }
   };
 
-  const saveEntry = async () => {
+  const saveEntry = () => {
     if (!currentEntry.text) return;
 
-    const newEntries = [...entries, currentEntry];
-    const success = await DataManager.saveData(StorageKeys.JOURNAL_ENTRIES, newEntries);
-
-    if (success) {
-      setEntries(newEntries);
-      setCurrentEntry({
-        text: '',
-        mood: '',
-        tags: [],
-        date: new Date().toISOString(),
-      });
-    }
+    const newEntries = [...entries, { ...currentEntry, id: Date.now() }];
+    localStorage.setItem('journalEntries', JSON.stringify(newEntries));
+    setEntries(newEntries);
+    setCurrentEntry({
+      id: Date.now(),
+      text: '',
+      mood: '',
+      tags: [],
+      date: new Date(),
+    });
   };
 
   const addTag = () => {
-    if (newTag && !tags.includes(newTag)) {
-      setTags([...tags, newTag]);
+    if (newTag && !currentEntry.tags.includes(newTag)) {
+      setCurrentEntry({
+        ...currentEntry,
+        tags: [...currentEntry.tags, newTag],
+      });
       setNewTag('');
     }
   };
 
+  const handleTagDelete = (tagToDelete) => {
+    setCurrentEntry({
+      ...currentEntry,
+      tags: currentEntry.tags.filter((tag) => tag !== tagToDelete),
+    });
+  };
+
+  const columns = [
+    { field: 'date', headerName: 'Date', width: 200, 
+      valueFormatter: (params) => new Date(params.value).toLocaleString() },
+    { field: 'mood', headerName: 'Mood', width: 120 },
+    { field: 'text', headerName: 'Entry', width: 300 },
+    { 
+      field: 'tags', 
+      headerName: 'Tags', 
+      width: 300,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {params.value.map((tag) => (
+            <Chip key={tag} label={tag} size="small" />
+          ))}
+        </Box>
+      ),
+    },
+  ];
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.date}>{new Date().toLocaleDateString()}</Text>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            New Journal Entry
+          </Typography>
 
-      <View style={styles.moodContainer}>
-        <Text style={styles.label}>How are you feeling today?</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {MOODS.map((mood) => (
-            <TouchableOpacity
-              key={mood}
-              onPress={() => setSelectedMood(mood)}
-              style={[
-                styles.moodButton,
-                selectedMood === mood && styles.selectedMood,
-              ]}
-            >
-              <Text>{mood}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              How are you feeling today?
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {MOODS.map((mood) => (
+                <Chip
+                  key={mood}
+                  label={mood}
+                  onClick={() => setCurrentEntry({ ...currentEntry, mood })}
+                  color={currentEntry.mood === mood ? 'primary' : 'default'}
+                  sx={{ cursor: 'pointer' }}
+                />
+              ))}
+            </Box>
+          </Box>
 
-      <TextInput
-        style={styles.journalInput}
-        multiline
-        placeholder="Write your thoughts..."
-        value={entry}
-        onChangeText={setEntry}
-      />
-
-      <View style={styles.tagsContainer}>
-        <Text style={styles.label}>Tags</Text>
-        <View style={styles.tagInput}>
-          <TextInput
-            value={newTag}
-            onChangeText={setNewTag}
-            placeholder="Add a tag"
-            style={styles.tagTextInput}
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Write your thoughts..."
+            value={currentEntry.text}
+            onChange={(e) => setCurrentEntry({ ...currentEntry, text: e.target.value })}
+            sx={{ mb: 2 }}
           />
-          <TouchableOpacity onPress={addTag} style={styles.addTagButton}>
-            <Text>Add</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.tagsList}>
-          {tags.map((tag) => (
-            <Chip
-              key={tag}
-              onClose={() => setTags(tags.filter((t) => t !== tag))}
-              style={styles.chip}
-            >
-              {tag}
-            </Chip>
-          ))}
-        </View>
-      </View>
-    </ScrollView>
-  );
-}
 
-const styles = StyleSheet.create({
-  // Journal Screen Styles
-  moodContainer: {
-    marginBottom: 20,
-  },
-  moodButton: {
-    padding: 10,
-    marginRight: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  selectedMood: {
-    backgroundColor: '#e3e3e3',
-  },
-  journalInput: {
-    height: 200,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    textAlignVertical: 'top',
-  }
-});
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Tags
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+              <TextField
+                size="small"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Add a tag"
+                onKeyPress={(e) => e.key === 'Enter' && addTag()}
+              />
+              <Button variant="contained" onClick={addTag}>
+                Add Tag
+              </Button>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+              {currentEntry.tags.map((tag) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  onDelete={() => handleTagDelete(tag)}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          <Button
+            variant="contained"
+            onClick={saveEntry}
+            disabled={!currentEntry.text}
+            sx={{ mt: 2 }}
+          >
+            Save Entry
+          </Button>
+        </Paper>
+
+        <DataGrid
+          rows={entries}
+          columns={columns}
+          initialState={{
+            pagination: {
+              paginationModel: { page: 0, pageSize: 5 },
+            },
+          }}
+          pageSizeOptions={[5, 10]}
+          autoHeight
+        />
+      </Box>
+    </LocalizationProvider>
+  );
+};
+
+export default Journal;

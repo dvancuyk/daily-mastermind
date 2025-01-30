@@ -12,11 +12,13 @@ import {
   TextField,
   Typography,
   Paper,
+  Stack,
   Grid2
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
 import { Delete, Add, ArrowBack } from '@mui/icons-material';
 
 export default function Plan() {
@@ -173,17 +175,15 @@ export default function Plan() {
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 3 }}>
-        <Grid2 container spacing={2} >
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box>
+        <Grid2 container spacing={1} rowSpacing={5}  >
           <Grid2 size={6}>
             {renderQuadrant(1)}
           </Grid2>
           <Grid2 size={6}>
             {renderQuadrant(2)}
           </Grid2>
-        </Grid2>
-        <Grid2 container spacing={2} rowSpacing={2}>
           <Grid2 size={6}>
             {renderQuadrant(3)}
           </Grid2>
@@ -192,15 +192,16 @@ export default function Plan() {
           </Grid2>
         </Grid2>
 
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setNewTaskModal(true)}
-          sx={{ mb: 2 }}
-        >
-          Add Task
-        </Button>
-
+      <Stack  sx={{ mt: 5 }}>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setNewTaskModal(true)}
+            sx={{ mb: 2 }}
+          >
+            Add Task
+          </Button>
+        </Stack>
         {/* Unassigned Tasks */}
         <Box>
           {tasks
@@ -263,11 +264,20 @@ export default function Plan() {
               sx={{ mb: 2 }}
             />
             <DatePicker
-              label="Due Date (Optional)"
-              value={newTask.dueBy}
-              onChange={(date) => setNewTask({...newTask, dueBy: date})}
-              renderInput={(params) => <TextField {...params} fullWidth />}
-              sx={{ mb: 2 }}
+                  label="Due Date (Optional)"
+                  value={newTask.dueBy ? dayjs(newTask.dueBy) : null}
+                  onChange={(newValue) => {
+                    setNewTask({
+                      ...newTask,
+                      dueBy: newValue ? newValue.toDate() : null
+                    });
+                  }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      margin: "dense"
+                    }
+                  }}
             />
             <TextField
               margin="dense"
