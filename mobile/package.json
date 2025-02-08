@@ -26,6 +26,7 @@
     "expo-router": "~4.0.2",
     "expo-splash-screen": "~0.29.7",
     "expo-status-bar": "~2.0.0",
+    "lucide-react": "^0.474.0",
     "lucide-react-native": "^0.473.0",
     "react": "18.3.1",
     "react-beautiful-dnd": "^13.1.1",
